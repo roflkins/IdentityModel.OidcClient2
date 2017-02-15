@@ -5,6 +5,9 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using System.Security.Cryptography;
+using Microsoft.IdentityModel.Tokens;
+using IdentityModel.Jwk;
 
 namespace IdentityModel.OidcClient
 {
@@ -111,13 +114,13 @@ namespace IdentityModel.OidcClient
 
             // redeem code for tokens
             var tokenResponse = await RedeemCodeAsync(authorizeResponse.Code, state);
-            if (tokenResponse.IsError)
+            if (tokenResponse.Item1.IsError)
             {
-                return new ResponseValidationResult(tokenResponse.Error);
+                return new ResponseValidationResult(tokenResponse.Item1.Error);
             }
 
             // validate token response
-            var tokenResponseValidationResult = await ValidateTokenResponseAsync(tokenResponse, state);
+            var tokenResponseValidationResult = await ValidateTokenResponseAsync(tokenResponse.Item1, state);
             if (tokenResponseValidationResult.IsError)
             {
                 return new ResponseValidationResult(tokenResponseValidationResult.Error);
@@ -135,7 +138,8 @@ namespace IdentityModel.OidcClient
             return new ResponseValidationResult
             {
                 AuthorizeResponse = authorizeResponse,
-                TokenResponse = tokenResponse,
+                TokenResponse = tokenResponse.Item1,
+                 JwkProvider = tokenResponse.Item2,
                 User = tokenResponseValidationResult.IdentityTokenValidationResult.User
             };
         }
@@ -150,13 +154,13 @@ namespace IdentityModel.OidcClient
 
             // redeem code for tokens
             var tokenResponse = await RedeemCodeAsync(authorizeResponse.Code, state);
-            if (tokenResponse.IsError)
+            if (tokenResponse.Item1.IsError)
             {
-                return new ResponseValidationResult($"Error redeeming code: {tokenResponse.Error ?? "no error code"} / {tokenResponse.ErrorDescription ?? "no description"}");
+                return new ResponseValidationResult($"Error redeeming code: {tokenResponse.Item1.Error ?? "no error code"} / {tokenResponse.Item1.ErrorDescription ?? "no description"}");
             }
 
             // validate token response
-            var tokenResponseValidationResult = await ValidateTokenResponseAsync(tokenResponse, state);
+            var tokenResponseValidationResult = await ValidateTokenResponseAsync(tokenResponse.Item1, state);
             if (tokenResponseValidationResult.IsError)
             {
                 return new ResponseValidationResult($"Error validating token response: {tokenResponseValidationResult.Error}");
@@ -165,7 +169,8 @@ namespace IdentityModel.OidcClient
             return new ResponseValidationResult
             {
                 AuthorizeResponse = authorizeResponse,
-                TokenResponse = tokenResponse,
+                TokenResponse = tokenResponse.Item1,
+                 JwkProvider = tokenResponse.Item2,
                 User = tokenResponseValidationResult.IdentityTokenValidationResult.User
             };
         }
@@ -245,18 +250,39 @@ namespace IdentityModel.OidcClient
             return match;
         }
 
-        private async Task<TokenResponse> RedeemCodeAsync(string code, AuthorizeState state)
+        private async Task<Tuple<TokenResponse, RSA>> RedeemCodeAsync(string code, AuthorizeState state)
         {
             _logger.LogTrace("RedeemCodeAsync");
 
+            //-- PoP Key Creation
             var client = GetTokenClient();
+            var rsa = RSA.Create();
+            var key = new RsaSecurityKey(rsa);
+            key.KeyId = CryptoRandom.CreateUniqueId();
 
-            var tokenResult = await client.RequestAuthorizationCodeAsync(
+            var parameters = key.Rsa?.ExportParameters(false) ?? key.Parameters;
+            var exponent = Base64Url.Encode(parameters.Exponent);
+            var modulus = Base64Url.Encode(parameters.Modulus);
+
+            var webKey = new Jwk.JsonWebKey
+            {
+                Kty = "RSA",
+                Alg = "RS256",
+                Kid = key.KeyId,
+                E = exponent,
+                N = modulus,
+            };
+            
+            //-- Code request.
+            var tokenResult = await client.RequestAuthorizationCodePopAsync(
                 code,
                 state.RedirectUri,
-                codeVerifier: state.CodeVerifier);
+                state.CodeVerifier,
+                webKey.Alg,
+                webKey.ToJwkString()
+                );
 
-            return tokenResult;
+            return new Tuple<TokenResponse, RSA>(tokenResult, rsa);
         }
 
         private TokenClient GetTokenClient()

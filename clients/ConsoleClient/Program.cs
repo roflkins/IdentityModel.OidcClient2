@@ -12,7 +12,7 @@ namespace ConsoleClient
 {
     public class Program
     {
-        static string _authority = "https://demo.identityserver.io";
+        static string _authority = "https://localhost:44333/core";
         static string _api = "https://api.identityserver.io/identity";
 
         public static void Main(string[] args) => MainAsync().GetAwaiter().GetResult();
@@ -50,6 +50,7 @@ namespace ConsoleClient
                 ClientId = "native.hybrid",
                 RedirectUri = redirectUri,
                 Scope = "openid profile api",
+                ClientSecret = "secret",
                 FilterClaims = true,
                 LoadProfile = true,
                 Flow = OidcClientOptions.AuthenticationFlow.Hybrid
