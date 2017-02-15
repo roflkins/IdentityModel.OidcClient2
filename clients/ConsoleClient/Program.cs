@@ -83,20 +83,25 @@ namespace ConsoleClient
             var result = await client.ProcessResponseAsync(formData, state);
 
             //-- Test POP generation
-            var testPop = IdentityModel.OidcClient.PopTokenService.ToPopTokenString(IdentityModel.OidcClient.PopTokenService.GeneratePopToken(new IdentityModel.OidcClient.Pop.EncodingParameters(options, result.AccessToken)
+            var testPop = client.CreatePopToken(new IdentityModel.OidcClient.Pop.EncodingParameters(options, result.AccessToken)
             {
-                Method = "GET"
-            }, result.PopTokenKey));
+                Method = "GET" 
+            }, result.PopTokenKey).ToSignedB64String();
+
+            Console.WriteLine($"Generated PoP Token: {testPop}");
 
             //--Test validation...
-            var testValidate = await IdentityModel.OidcClient.PopTokenService.ValidatePopToken(options, client, testPop, "read", "secret");
+            var testValidate = await client.ValidatePopToken(testPop, "read", "secret");
+            Console.WriteLine($"PoP Token Valid: {testValidate}");
 
             //--Test refresh
             var refreshResult = await client.RefreshTokenAsync(result.RefreshToken);
-            var testPop1 = IdentityModel.OidcClient.PopTokenService.ToPopTokenString(IdentityModel.OidcClient.PopTokenService.GeneratePopToken(new IdentityModel.OidcClient.Pop.EncodingParameters(options, refreshResult.AccessToken)
+             testPop = client.CreatePopToken(new IdentityModel.OidcClient.Pop.EncodingParameters(options, refreshResult.AccessToken)
             {
                 Method = "GET"
-            }, refreshResult.PopTokenKey));
+            }, refreshResult.PopTokenKey).ToSignedB64String();
+            Console.WriteLine($"Generated PoP Token after refresh: {testPop}");
+            Console.WriteLine($"PoP Token (using refreshed access token) Valid: {testValidate}");
 
             ShowResult(result);
         }

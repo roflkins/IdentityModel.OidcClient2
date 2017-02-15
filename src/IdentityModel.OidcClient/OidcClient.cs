@@ -15,6 +15,8 @@ using IdentityModel.OidcClient.Browser;
 using IdentityModel.Jwk;
 using System.Security.Cryptography;
 using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using IdentityModel.OidcClient.Pop;
 
 namespace IdentityModel.OidcClient
 {
@@ -375,6 +377,62 @@ namespace IdentityModel.OidcClient
             }
 
             return new ClaimsPrincipal(new ClaimsIdentity(userClaims, user.Identity.AuthenticationType, user.Identities.First().NameClaimType, user.Identities.First().RoleClaimType));
+        }
+
+        /// <summary>
+        /// Creates a pop/HMAC token using the parameters and signature key specified.
+        /// </summary>
+        /// <param name="parameters"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        public JwtSecurityToken CreatePopToken(EncodingParameters parameters, RsaSecurityKey key)
+        {
+            if (parameters == null) throw new ArgumentNullException("parameters");
+            if (key == null) throw new ArgumentNullException("key");
+            var payload = parameters.Encode();
+            var encoded = payload.Encode();
+            var jPayload = new JwtPayload();
+            foreach (var values in encoded)
+                jPayload.Add(values.Key, values.Value);
+            var jHeader = new JwtHeader(new SigningCredentials(key, "RS256"));
+            jHeader.Remove("kid"); //Other implementations seem to omit this - and it maybe best since either introspection or the access token will have the key used to validate.
+            var jwt = new JwtSecurityToken(jHeader, jPayload);
+            return jwt;
+        }
+        
+        /// <summary>
+        /// Checks the PoP/HMAC token for validity by verifiying both the access token signature (if JWT) and validity (if using or requiring introspection), as well as the hmac and timestamp. 
+        /// *Does not* validate nonce or the expected parameters in the body of the token.
+        /// </summary>
+        /// <param name="token"></param>
+        /// <param name="scope"></param>
+        /// <param name="scopeSecret"></param>
+        /// <returns></returns>
+        public  async Task<AccessTokenValidationResult> ValidatePopToken(string token, string scope, string scopeSecret)
+        {
+            if (string.IsNullOrEmpty(token)) throw new ArgumentNullException("popToken");
+            if (string.IsNullOrEmpty(scope)) throw new ArgumentNullException("scope");
+            if (string.IsNullOrEmpty(scopeSecret)) throw new ArgumentNullException("scopeSecret");
+            var processor = new PopAccessTokenValidator(_options, EnsureProviderInformationAsync);
+            return await processor.ValidateAsync(token, scope, scopeSecret);
+
+        }
+
+        /// <summary>
+        /// Validates a bearer access token for validity by verifiying both the access token signature (if JWT) and validity (if using or requiring introspection).
+        /// </summary>
+        /// <param name="token"></param>
+        /// <param name="scope"></param>
+        /// <param name="scopeSecret"></param>
+        /// <returns></returns>
+        public async Task<Results.AccessTokenValidationResult> ValidateToken(string token, string scope, string scopeSecret)
+        {
+            if (string.IsNullOrEmpty(token)) throw new ArgumentNullException("popToken");
+            if (string.IsNullOrEmpty(scope)) throw new ArgumentNullException("scope");
+            if (string.IsNullOrEmpty(scopeSecret)) throw new ArgumentNullException("scopeSecret");
+            var processor = new AccessTokenValidator(_options, EnsureProviderInformationAsync);
+            return await processor.ValidateAsync(token, scope, scopeSecret);
+
         }
     }
 }
