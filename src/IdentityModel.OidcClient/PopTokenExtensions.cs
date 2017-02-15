@@ -1,13 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
 using System.Security.Cryptography;
-using IdentityModel.OidcClient.Pop;
 
 namespace IdentityModel.OidcClient
 {
@@ -25,6 +19,29 @@ namespace IdentityModel.OidcClient
 
             return handler.WriteToken(token);
         }
-        
+
+
+        internal static Tuple<Jwk.JsonWebKey, RsaSecurityKey> CreateProviderForPopToken()
+        {
+            var rsa = RSA.Create();
+            rsa.KeySize = 2048; //Set explicitly - on iOS initalizes to 1024.
+            var key = new RsaSecurityKey(rsa);
+            key.KeyId = CryptoRandom.CreateUniqueId();
+
+            var parameters = key.Rsa?.ExportParameters(false) ?? key.Parameters;
+            var exponent = Base64Url.Encode(parameters.Exponent);
+            var modulus = Base64Url.Encode(parameters.Modulus);
+
+            var webKey = new Jwk.JsonWebKey
+            {
+                Kty = "RSA",
+                Alg = "RS256",
+                Kid = key.KeyId,
+                E = exponent,
+                N = modulus,
+            };
+
+            return new Tuple<Jwk.JsonWebKey, RsaSecurityKey>(webKey, key);
+        }
     }
 }

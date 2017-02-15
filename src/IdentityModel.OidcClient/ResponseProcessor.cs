@@ -253,36 +253,22 @@ namespace IdentityModel.OidcClient
         private async Task<Tuple<TokenResponse, RsaSecurityKey>> RedeemCodeAsync(string code, AuthorizeState state)
         {
             _logger.LogTrace("RedeemCodeAsync");
+           
+            var client = GetTokenClient();
 
             //-- PoP Key Creation
-            var client = GetTokenClient();
-            var rsa = RSA.Create();
-            var key = new RsaSecurityKey(rsa);
-            key.KeyId = CryptoRandom.CreateUniqueId();
+            var popKey = PopTokenExtensions.CreateProviderForPopToken();
 
-            var parameters = key.Rsa?.ExportParameters(false) ?? key.Parameters;
-            var exponent = Base64Url.Encode(parameters.Exponent);
-            var modulus = Base64Url.Encode(parameters.Modulus);
-
-            var webKey = new Jwk.JsonWebKey
-            {
-                Kty = "RSA",
-                Alg = "RS256",
-                Kid = key.KeyId,
-                E = exponent,
-                N = modulus,
-            };
-            
             //-- Code request.
             var tokenResult = await client.RequestAuthorizationCodePopAsync(
                 code,
                 state.RedirectUri,
                 state.CodeVerifier,
-                webKey.Alg,
-                webKey.ToJwkString()
+                popKey.Item1.Alg,
+                popKey.Item1.ToJwkString()
                 );
 
-            return new Tuple<TokenResponse, RsaSecurityKey>(tokenResult, key);
+            return new Tuple<TokenResponse, RsaSecurityKey>(tokenResult, popKey.Item2);
         }
 
         private TokenClient GetTokenClient()

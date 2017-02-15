@@ -15,7 +15,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IdentityModel.OidcClient", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IdentityModel.OidcClient.Tests", "test\IdentityModel.OidcClient.Tests\IdentityModel.OidcClient.Tests.csproj", "{B3874074-52B5-4319-B1F4-6896E8DC51B4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConsoleClient", "clients\ConsoleClient\ConsoleClient.csproj", "{A17CE98F-4F71-4AA6-AB0A-EB6A04A2C8C4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConsoleClientWithPopGeneration", "clients\ConsoleClient\ConsoleClientWithPopGeneration.csproj", "{A17CE98F-4F71-4AA6-AB0A-EB6A04A2C8C4}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConsoleClientWithBrowser", "clients\ConsoleClientWithBrowser\ConsoleClientWithBrowser.csproj", "{D8307A14-403E-48A4-870F-88CF9FE8CACA}"
 EndProject

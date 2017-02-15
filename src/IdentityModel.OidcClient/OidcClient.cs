@@ -207,6 +207,8 @@ namespace IdentityModel.OidcClient
             };
         }
 
+        
+
         /// <summary>
         /// Refreshes an access token.
         /// </summary>
@@ -217,25 +219,11 @@ namespace IdentityModel.OidcClient
             _logger.LogTrace("RefreshTokenAsync");
 
             var client = TokenClientFactory.Create(_options);
+
             //-- PoP Key Creation
-            var rsa = RSA.Create();
-            var key = new RsaSecurityKey(rsa);
-            key.KeyId = CryptoRandom.CreateUniqueId();
-
-            var parameters = key.Rsa?.ExportParameters(false) ?? key.Parameters;
-            var exponent = Base64Url.Encode(parameters.Exponent);
-            var modulus = Base64Url.Encode(parameters.Modulus);
-
-            var webKey = new Jwk.JsonWebKey
-            {
-                Kty = "RSA",
-                Alg = "RS256",
-                Kid = key.KeyId,
-                E = exponent,
-                N = modulus,
-            };
+            var popKey = PopTokenExtensions.CreateProviderForPopToken();
             
-            var response = await client.RequestRefreshTokenPopAsync(refreshToken,webKey.Alg, webKey.ToJwkString());
+            var response = await client.RequestRefreshTokenPopAsync(refreshToken,popKey.Item1.Alg, popKey.Item1.ToJwkString());
 
             if (response.IsError)
             {
@@ -255,7 +243,7 @@ namespace IdentityModel.OidcClient
                 AccessToken = response.AccessToken,
                 RefreshToken = response.RefreshToken,
                 ExpiresIn = (int)response.ExpiresIn,
-                PopTokenKey = key
+                PopTokenKey = popKey.Item2
             };
         }
 
