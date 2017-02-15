@@ -1,6 +1,6 @@
 ﻿using IdentityModel.Client;
 using System.Security.Claims;
-using System.Security.Cryptography;
+using Microsoft.IdentityModel.Tokens;
 
 namespace IdentityModel.OidcClient
 {
@@ -19,6 +19,6 @@ namespace IdentityModel.OidcClient
         public AuthorizeResponse AuthorizeResponse { get; set; }
         public TokenResponse TokenResponse { get; set; }
         public ClaimsPrincipal User { get; set; }
-        public RSA JwkProvider { get; set; }
+        public RsaSecurityKey JwkProvider { get; set; }
     }
 }

@@ -12,6 +12,9 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using IdentityModel.OidcClient.Results;
 using IdentityModel.OidcClient.Browser;
+using IdentityModel.Jwk;
+using System.Security.Cryptography;
+using Microsoft.IdentityModel.Tokens;
 
 namespace IdentityModel.OidcClient
 {
@@ -157,7 +160,8 @@ namespace IdentityModel.OidcClient
                 RefreshToken = result.TokenResponse.RefreshToken,
                 AccessTokenExpiration = DateTime.Now.AddSeconds(result.TokenResponse.ExpiresIn),
                 IdentityToken = result.TokenResponse.IdentityToken,
-                AuthenticationTime = DateTime.Now
+                AuthenticationTime = DateTime.Now,
+                PopTokenKey = result.JwkProvider
             };
 
             if (!string.IsNullOrWhiteSpace(loginResult.RefreshToken))
@@ -211,7 +215,25 @@ namespace IdentityModel.OidcClient
             _logger.LogTrace("RefreshTokenAsync");
 
             var client = TokenClientFactory.Create(_options);
-            var response = await client.RequestRefreshTokenAsync(refreshToken);
+            //-- PoP Key Creation
+            var rsa = RSA.Create();
+            var key = new RsaSecurityKey(rsa);
+            key.KeyId = CryptoRandom.CreateUniqueId();
+
+            var parameters = key.Rsa?.ExportParameters(false) ?? key.Parameters;
+            var exponent = Base64Url.Encode(parameters.Exponent);
+            var modulus = Base64Url.Encode(parameters.Modulus);
+
+            var webKey = new Jwk.JsonWebKey
+            {
+                Kty = "RSA",
+                Alg = "RS256",
+                Kid = key.KeyId,
+                E = exponent,
+                N = modulus,
+            };
+            
+            var response = await client.RequestRefreshTokenPopAsync(refreshToken,webKey.Alg, webKey.ToJwkString());
 
             if (response.IsError)
             {
@@ -230,7 +252,8 @@ namespace IdentityModel.OidcClient
                 IdentityToken = response.IdentityToken,
                 AccessToken = response.AccessToken,
                 RefreshToken = response.RefreshToken,
-                ExpiresIn = (int)response.ExpiresIn
+                ExpiresIn = (int)response.ExpiresIn,
+                PopTokenKey = key
             };
         }
 

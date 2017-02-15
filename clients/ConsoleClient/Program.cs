@@ -49,7 +49,7 @@ namespace ConsoleClient
                 Authority = _authority,
                 ClientId = "native.hybrid",
                 RedirectUri = redirectUri,
-                Scope = "openid profile api",
+                Scope = "openid profile api read offline_access",
                 ClientSecret = "secret",
                 FilterClaims = true,
                 LoadProfile = true,
@@ -81,6 +81,22 @@ namespace ConsoleClient
             await SendResponseAsync(context.Response);
 
             var result = await client.ProcessResponseAsync(formData, state);
+
+            //-- Test POP generation
+            var testPop = IdentityModel.OidcClient.PopTokenService.ToPopTokenString(IdentityModel.OidcClient.PopTokenService.GeneratePopToken(new IdentityModel.OidcClient.Pop.EncodingParameters(options, result.AccessToken)
+            {
+                Method = "GET"
+            }, result.PopTokenKey));
+
+            //--Test validation...
+            var testValidate = await IdentityModel.OidcClient.PopTokenService.ValidatePopToken(options, client, testPop, "read", "secret");
+
+            //--Test refresh
+            var refreshResult = await client.RefreshTokenAsync(result.RefreshToken);
+            var testPop1 = IdentityModel.OidcClient.PopTokenService.ToPopTokenString(IdentityModel.OidcClient.PopTokenService.GeneratePopToken(new IdentityModel.OidcClient.Pop.EncodingParameters(options, refreshResult.AccessToken)
+            {
+                Method = "GET"
+            }, refreshResult.PopTokenKey));
 
             ShowResult(result);
         }

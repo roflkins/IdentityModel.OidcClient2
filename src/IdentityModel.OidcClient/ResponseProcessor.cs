@@ -250,7 +250,7 @@ namespace IdentityModel.OidcClient
             return match;
         }
 
-        private async Task<Tuple<TokenResponse, RSA>> RedeemCodeAsync(string code, AuthorizeState state)
+        private async Task<Tuple<TokenResponse, RsaSecurityKey>> RedeemCodeAsync(string code, AuthorizeState state)
         {
             _logger.LogTrace("RedeemCodeAsync");
 
@@ -282,7 +282,7 @@ namespace IdentityModel.OidcClient
                 webKey.ToJwkString()
                 );
 
-            return new Tuple<TokenResponse, RSA>(tokenResult, rsa);
+            return new Tuple<TokenResponse, RsaSecurityKey>(tokenResult, key);
         }
 
         private TokenClient GetTokenClient()

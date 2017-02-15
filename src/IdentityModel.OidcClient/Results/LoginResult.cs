@@ -5,6 +5,7 @@
 using System;
 using System.Net.Http;
 using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
 
 namespace IdentityModel.OidcClient
 {
@@ -28,5 +29,8 @@ namespace IdentityModel.OidcClient
         public DateTime AuthenticationTime { get; set; }
 
         public HttpMessageHandler RefreshTokenHandler { get; set; }
+
+
+        public RsaSecurityKey PopTokenKey { get; set; }
     }
 }

@@ -20,7 +20,7 @@ namespace IdentityModel.OidcClient
         {
             _logger.LogTrace("GetMatchingHashAlgorithm");
             _logger.LogDebug("Determining matching hash algorithm for {signatureAlgorithm}", signatureAlgorithm);
-
+            
             var signingAlgorithmBits = int.Parse(signatureAlgorithm.Substring(signatureAlgorithm.Length - 3));
             
             switch (signingAlgorithmBits)

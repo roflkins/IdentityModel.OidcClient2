@@ -53,6 +53,22 @@ namespace IdentityModel.OidcClient
         public bool RequireIdentityTokenSignature { get; set; } = true;
 
         /// <summary>
+        /// Gets or sets a value indicating whether an access token must be signed or not (unsigned identity tokens are only allowed in authorization code flow)
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if identity token must be signed; otherwise, <c>false</c>.
+        /// </value>
+        public bool RequireAccessTokenSignature { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets whether an access token is validated using introspection, ir-respective of whether it is a jwt or refrence token.
+        /// <value>
+        /// <c>true</c> If the token must be validated online; otherwise, <c>false</c>
+        /// </value>
+        /// </summary>
+        public bool ForceOnlyAccessTokenVerification { get; set; } = false;
+
+        /// <summary>
         /// Gets or sets the supported identity token signing algorithms.
         /// </summary>
         /// <value>
