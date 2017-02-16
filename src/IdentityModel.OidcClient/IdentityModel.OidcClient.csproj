@@ -29,7 +29,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <Optimize>true</Optimize>
     <OutputPath>bin\Release</OutputPath>
-    <DefineConstants>RELEASE;NETSTANDARD1_4;TRACE</DefineConstants>
+    <DefineConstants>TRACE;RELEASE;NETSTANDARD1_4;RELEASE;NETSTANDARD1_4</DefineConstants>
     <WarningLevel>4</WarningLevel>
     <NoWarn>1701;1702;1705</NoWarn>
   </PropertyGroup>

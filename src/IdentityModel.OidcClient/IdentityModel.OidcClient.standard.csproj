@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{6C6C3E73-3E1F-4B26-97AC-C75D19144484}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>IdentityModel.OidcClient</RootNamespace>
+    <AssemblyName>IdentityModel.OidcClient</AssemblyName>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <FileAlignment>512</FileAlignment>
+    <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <TargetFrameworkProfile>
+    </TargetFrameworkProfile>
+    <TargetFrameworkVersion>v5.0</TargetFrameworkVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\netstandard1.4\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;NETSTANDARD1_4;NETSTANDARD1_4</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <NoWarn>1701;1702;1705</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\netstandard1.4\</OutputPath>
+    <DefineConstants>TRACE;RELEASE;NETSTANDARD1_4;RELEASE;NETSTANDARD1_4</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <NoWarn>1701;1702;1705</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- A reference to the entire .NET Framework is automatically included -->
+    <None Include="project.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AccessTokenValidator.cs" />
+    <Compile Include="AuthorizeClient.cs" />
+    <Compile Include="AuthorizeState.cs" />
+    <Compile Include="Browser\BrowserOptions.cs" />
+    <Compile Include="Browser\BrowserResult.cs" />
+    <Compile Include="Browser\BrowserResultType.cs" />
+    <Compile Include="Browser\DisplayMode.cs" />
+    <Compile Include="Browser\IBrowser.cs" />
+    <Compile Include="CryptoHelper.cs" />
+    <Compile Include="IdentityTokenValidator.cs" />
+    <Compile Include="Infrastructure\LoggingExtensions.cs" />
+    <Compile Include="Infrastructure\LogSerializer.cs" />
+    <Compile Include="Infrastructure\StringExtensions.cs" />
+    <Compile Include="Infrastructure\TokenClientFactory.cs" />
+    <Compile Include="OidcClient.cs" />
+    <Compile Include="OidClientOptions.cs" />
+    <Compile Include="Policy.cs" />
+    <Compile Include="PopAccessTokenValidator.cs" />
+    <Compile Include="PopTokenExtensions.cs" />
+    <Compile Include="Pop\Cnf.cs" />
+    <Compile Include="Pop\EncodedList.cs" />
+    <Compile Include="Pop\EncodedParameters.cs" />
+    <Compile Include="Pop\EncodingHeaderList.cs" />
+    <Compile Include="Pop\EncodingList.cs" />
+    <Compile Include="Pop\EncodingParameters.cs" />
+    <Compile Include="Pop\EncodingQueryParameters.cs" />
+    <Compile Include="Pop\HttpSigningConstants.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ProviderInformation.cs" />
+    <Compile Include="ResponseProcessor.cs" />
+    <Compile Include="Results\AccessTokenValidationResult.cs" />
+    <Compile Include="Results\AuthorizeResult.cs" />
+    <Compile Include="Results\DiscoveryResult.cs" />
+    <Compile Include="Results\IdentityTokenValidationResult.cs" />
+    <Compile Include="Results\LoginResult.cs" />
+    <Compile Include="Results\RefreshTokenResult.cs" />
+    <Compile Include="Results\ResponseValidationResult.cs" />
+    <Compile Include="Results\Result.cs" />
+    <Compile Include="Results\TokenResponseValidationResult.cs" />
+    <Compile Include="Results\UserInfoResult.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
