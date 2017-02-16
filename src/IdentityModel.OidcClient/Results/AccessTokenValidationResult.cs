@@ -8,8 +8,11 @@ namespace IdentityModel.OidcClient.Results
 {
     public class AccessTokenValidationResult : Result
     {
-        public ClaimsPrincipal ClaimsPrincipal { get; set; }
-        public string SignatureAlgorithm { get; set; }
-      
+        public ClaimsPrincipal AccessTokenPrincipal { get; set; }
+        public ClaimsPrincipal PopTokenPrincipal { get; set; }
+        public string AccessTokenSignatureAlgorithm { get; set; }
+        public string PopTokenSignatureAlgorithm { get; set; }
+        public bool ValidatedByIntrospection { get; set; }
+        public bool PreformedPopTokenValidation { get; set; }
     }
 }

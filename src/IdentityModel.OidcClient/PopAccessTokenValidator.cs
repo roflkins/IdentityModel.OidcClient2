@@ -31,9 +31,9 @@ namespace IdentityModel.OidcClient
         /// </summary>
         /// <param name="identityToken">The identity token.</param>
         /// <returns>The validation result</returns>
-        public async Task<AccessTokenValidationResult> ValidateAsync(string popToken, string introspectionScope, string introspectionSecret)
+        public async Task<AccessTokenValidationResult> ValidateAsync(string popToken, bool forceIntrospection = false, string introspectionScope = null, string introspectionSecret = null)
         {
-            _logger.LogTrace("Validate");
+            _logger.LogTrace("Validate PoP Token");
 
             var handler = new JwtSecurityTokenHandler();
             handler.InboundClaimTypeMap.Clear();
@@ -102,68 +102,37 @@ namespace IdentityModel.OidcClient
                 };
             }
 
+            //Attempt to validate the JWT, if possible.
             AccessTokenValidationResult tokenValidation = null;
             try
             {
-               tokenValidation = await new AccessTokenValidator(_options, _refreshKeysAsync).ValidateAsync(extractedAccessToken, introspectionScope, introspectionSecret);
+               tokenValidation = await new AccessTokenValidator(_options, _refreshKeysAsync).ValidateAsync(extractedAccessToken, forceIntrospection, introspectionScope, introspectionSecret);
             }
-            catch
+            catch (Exception ex)
             {
-                //Eat all errors - it's possible this is a refrence token.
+                return new AccessTokenValidationResult
+                {
+                    Error = $"Error validating pop access token: {ex.ToString()}"
+                };
             }
 
-            //Get the signature keys...
-            Cnf discoveredCnf = null;
-            if (tokenValidation == null || tokenValidation.IsError || _options.Policy.ForceOnlyAccessTokenVerification)
+            if (tokenValidation.IsError) //If we failed - pass it through.
+                return tokenValidation;
+
+            //Get the signature keys and preform online validation.
+            var cnfJson = tokenValidation.AccessTokenPrincipal.Claims.FirstOrDefault(x => x.Type == "cnf")?.Value;
+            if (cnfJson == null)
             {
-                _logger.LogTrace("Preforming online validation.");
-                var client = new IntrospectionClient(string.Format("{0}/connect/introspect", _options.Authority));
-                var introResult = await client.SendAsync(new IntrospectionRequest()
-                {
-                    ClientId = introspectionScope,
-                    ClientSecret = introspectionSecret,
-                    Token = extractedAccessToken,
-                    TokenTypeHint = OidcConstants.TokenTypes.AccessToken
-                });
-
-                if (introResult.IsError)
-                {
-                    _logger.LogError("Introspection reported an error {0}", introResult.Error);
-                    return new AccessTokenValidationResult() { Error = "Access token or supplied scope binding is invalid." };
-                }
-                if (!introResult.IsActive)
-                {
-                    _logger.LogError("Introspection reported the token for the scope {0}, is not valid.", introspectionScope);
-                    return new AccessTokenValidationResult() { Error = "Invalid token or scope." };
-                }
-
-                var cnfJson = introResult.Claims.FirstOrDefault(x => x.Type == "cnf")?.Value;
-                if (cnfJson == null)
-                {
-                    _logger.LogError("Introspection could not find a CNF.");
-                    return new AccessTokenValidationResult() { Error = "Token validation failed." };
-                }
-
-                var cnf = Newtonsoft.Json.JsonConvert.DeserializeObject<Cnf>(cnfJson);
-                discoveredCnf =  cnf;
+                _logger.LogError("CNF is not present on the AccessTokenPrincipal");
+                return new AccessTokenValidationResult() { Error = "Token validation failed." };
             }
-            else
-            {
-                _logger.LogTrace("Preforming offline validation.");
-                var cnfJson = tokenValidation.ClaimsPrincipal.Claims.FirstOrDefault(x => x.Type == "cnf")?.Value;
-                if (cnfJson == null)
-                {
-                    _logger.LogError("Introspection could not find a CNF on the JWT.");
-                    return new AccessTokenValidationResult() { Error = "Token validation failed." };
-                }
-                discoveredCnf = Newtonsoft.Json.JsonConvert.DeserializeObject<Cnf>(cnfJson);
-            }
-            
 
+            Cnf cnf = Newtonsoft.Json.JsonConvert.DeserializeObject<Cnf>(cnfJson);
+           
             ClaimsPrincipal claims;
             try
             {
-                claims = ValidateSignature(popToken,discoveredCnf.jwk, handler, parameters);
+                claims = ValidateSignature(popToken,cnf.jwk, handler, parameters);
             }
             catch (SecurityTokenSignatureKeyNotFoundException sigEx)
             {
@@ -180,11 +149,10 @@ namespace IdentityModel.OidcClient
                 };
             }
 
-            return new AccessTokenValidationResult()
-            {
-                ClaimsPrincipal = claims,
-                SignatureAlgorithm = algorithm
-            };
+            tokenValidation.PopTokenPrincipal = claims;
+            tokenValidation.PopTokenSignatureAlgorithm = algorithm;
+            tokenValidation.PreformedPopTokenValidation = true;
+            return tokenValidation;
         }
 
         private ClaimsPrincipal ValidateSignature(string accessToken, IdentityModel.Jwk.JsonWebKey cnf, JwtSecurityTokenHandler handler, TokenValidationParameters parameters)

@@ -31,9 +31,14 @@ namespace IdentityModel.OidcClient
         /// </summary>
         /// <param name="identityToken">The identity token.</param>
         /// <returns>The validation result</returns>
-        public async Task<AccessTokenValidationResult> ValidateAsync(string accessToken, string introspectionScope, string introspectionSecret)
+        public async Task<AccessTokenValidationResult> ValidateAsync(string accessToken, bool forceIntrospection = false, string introspectionScope = null, string introspectionSecret = null)
         {
-            _logger.LogTrace("Validate");
+            _logger.LogTrace("Validate Access Token");
+            if (forceIntrospection || _options.Policy.ForceIntrospectionForAccessToken)
+            {
+                if (string.IsNullOrEmpty(introspectionScope)) throw new ArgumentNullException("introspectionScope");
+                if (string.IsNullOrEmpty(introspectionSecret)) throw new ArgumentNullException("introspectionSecret");
+            }
 
             var handler = new JwtSecurityTokenHandler();
             handler.InboundClaimTypeMap.Clear();
@@ -52,92 +57,159 @@ namespace IdentityModel.OidcClient
             {
                 jwt = handler.ReadJwtToken(accessToken);
             }
-            catch (Exception ex)
+            catch
             {
-                return new AccessTokenValidationResult
-                {
-                    Error = $"Error validating access token: {ex.ToString()}"
-                };
+                jwt = null;
+                 //Ignore - this could be a refrence token.
             }
-
-            var algorithm = jwt.Header.Alg;
-
-            // if token is unsigned, and this is allowed, skip signature validation
-            if (string.Equals(algorithm, "none"))
+            
+            ClaimsPrincipal claims;
+            if (jwt == null || _options.Policy.ForceIntrospectionForAccessToken || forceIntrospection) //Either not valid or not jwt... Check introspection.
             {
-                if (_options.Policy.RequireAccessTokenSignature)
+                _logger.LogTrace("Preforming online validation of access token.");
+                var client = new IntrospectionClient(string.Format("{0}/connect/introspect", _options.Authority));
+                var introResult = await client.SendAsync(new IntrospectionRequest()
+                {
+                    ClientId = introspectionScope,
+                    ClientSecret = introspectionSecret,
+                    Token = accessToken,
+                    TokenTypeHint = OidcConstants.TokenTypes.AccessToken
+                });
+
+                if (introResult.IsError)
+                {
+                    if (introResult.HttpStatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    {
+                        _logger.LogError("Introspection reported an error {0}, scope or secret is not correct.", introResult.Error);
+                        return new AccessTokenValidationResult() { Error = "The scope and secret to introspect is incorrect." };
+                    }
+                    _logger.LogError("Introspection reported an error {0}", introResult.Error);
+                    return new AccessTokenValidationResult() { Error = "Access token or supplied scope binding is invalid." };
+                }
+                if (!introResult.IsActive)
+                {
+                    _logger.LogError("Introspection reported the token for the scope {0}, is not valid.", introspectionScope);
+                    return new AccessTokenValidationResult() { Error = "Invalid token or scope." };
+                }
+
+
+
+                var claimsId = new ClaimsIdentity(introResult.Claims, "introspection");
+                claims = new ClaimsPrincipal(claimsId);
+
+                //double check that we actually have the scope requested.
+                if (!claims.Claims.Any(x => x.Type == "scope" && x.Value == introspectionScope))
                 {
                     return new AccessTokenValidationResult
                     {
-                        Error = $"Identity token is not singed. Signatures are required by policy"
+                        Error = $"Access token is not authorized for scope {introspectionScope}"
                     };
                 }
-                else
+
+
+                //Should we go ahead and validate the JWT and then use that as the principal (if we are wanting all of the original claims)? Preformance impacts of two validations may not be nice.
+
+                return new AccessTokenValidationResult()
                 {
-                    _logger.LogInformation("Identity token is not signed. This is allowed by configuration.");
-                    parameters.RequireSignedTokens = false;
-                }
+                    AccessTokenPrincipal = claims,
+                    ValidatedByIntrospection = true
+                };
             }
             else
             {
-                // check if signature algorithm is allowed by policy
-                if (!_options.Policy.ValidSignatureAlgorithms.Contains(algorithm))
+                //Valid jwt format - verify it.
+                _logger.LogTrace("Preforming offline validation of access token.");
+                var algorithm = jwt.Header.Alg;
+
+                // if token is unsigned, and this is allowed, skip signature validation
+                if (string.Equals(algorithm, "none"))
                 {
-                    return new AccessTokenValidationResult
-                    {
-                        Error = $"Identity token uses invalid algorithm: {algorithm}"
-                    };
-                };
-            }
-
-
-            ClaimsPrincipal claims;
-            try
-            {
-                claims = ValidateSignature(accessToken, handler, parameters);
-            }
-            catch (SecurityTokenSignatureKeyNotFoundException sigEx)
-            {
-                if (_options.RefreshDiscoveryOnSignatureFailure)
-                {
-                    _logger.LogWarning("Key for validating token signature cannot be found. Refreshing keyset.");
-
-                    // try to refresh the key set and try again
-                    await _refreshKeysAsync();
-
-                    try
-                    {
-                        claims = ValidateSignature(accessToken, handler, parameters);
-                    }
-                    catch (Exception ex)
+                    if (_options.Policy.RequireAccessTokenSignature)
                     {
                         return new AccessTokenValidationResult
                         {
-                            Error = $"Error validating access token: {ex.ToString()}"
+                            Error = $"Identity token is not singed. Signatures are required by policy"
                         };
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Identity token is not signed. This is allowed by configuration.");
+                        parameters.RequireSignedTokens = false;
                     }
                 }
                 else
                 {
-                    return new AccessTokenValidationResult
+                    // check if signature algorithm is allowed by policy
+                    if (!_options.Policy.ValidSignatureAlgorithms.Contains(algorithm))
                     {
-                        Error = $"Error validating access token: {sigEx.ToString()}"
+                        return new AccessTokenValidationResult
+                        {
+                            Error = $"Identity token uses invalid algorithm: {algorithm}"
+                        };
                     };
                 }
-            }
-            catch (Exception ex)
-            {
-                return new AccessTokenValidationResult
+
+
+                try
                 {
-                    Error = $"Error validating access token: {ex.ToString()}"
+                    claims = ValidateSignature(accessToken, handler, parameters);
+                }
+                catch (SecurityTokenSignatureKeyNotFoundException sigEx)
+                {
+                    if (_options.RefreshDiscoveryOnSignatureFailure)
+                    {
+                        _logger.LogWarning("Key for validating token signature cannot be found. Refreshing keyset.");
+
+                        // try to refresh the key set and try again
+                        await _refreshKeysAsync();
+
+                        try
+                        {
+                            claims = ValidateSignature(accessToken, handler, parameters);
+                        }
+                        catch (Exception ex)
+                        {
+                            return new AccessTokenValidationResult
+                            {
+                                Error = $"Error validating access token: {ex.ToString()}"
+                            };
+                        }
+                    }
+                    else
+                    {
+                        return new AccessTokenValidationResult
+                        {
+                            Error = $"Error validating access token: {sigEx.ToString()}"
+                        };
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return new AccessTokenValidationResult
+                    {
+                        Error = $"Error validating access token: {ex.ToString()}"
+                    };
+                }
+
+                //Check if we have the scope specified - if applicable.
+                if (!string.IsNullOrEmpty(introspectionScope))
+                {
+                    if (!claims.Claims.Any(x => x.Type == "scope" && x.Value == introspectionScope))
+                    {
+                        return new AccessTokenValidationResult
+                        {
+                            Error = $"Access token is not authorized for scope {introspectionScope}"
+                        };
+                    }
+                }
+
+                return new AccessTokenValidationResult()
+                {
+                    AccessTokenPrincipal = claims,
+                    AccessTokenSignatureAlgorithm = algorithm,
+                    ValidatedByIntrospection = false
                 };
             }
-
-            return new AccessTokenValidationResult()
-            {
-                ClaimsPrincipal = claims,
-                SignatureAlgorithm = algorithm
-            };
         }
 
         private ClaimsPrincipal ValidateSignature(string accessToken, JwtSecurityTokenHandler handler, TokenValidationParameters parameters)

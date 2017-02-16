@@ -30,7 +30,7 @@ namespace IdentityModel.OidcClient
         /// <returns>The validation result</returns>
         public async Task<IdentityTokenValidationResult> ValidateAsync(string identityToken)
         {
-            _logger.LogTrace("Validate");
+            _logger.LogTrace("Validate Identity Token");
 
             var handler = new JwtSecurityTokenHandler();
             handler.InboundClaimTypeMap.Clear();

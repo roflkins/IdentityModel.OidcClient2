@@ -81,7 +81,7 @@ namespace ConsoleClient
             await SendResponseAsync(context.Response);
 
             var result = await client.ProcessResponseAsync(formData, state);
-
+            options.Policy.ForceIntrospectionForAccessToken = true;
             //-- Test POP generation
             var testPop = client.CreatePopToken(new IdentityModel.OidcClient.Pop.EncodingParameters(options, result.AccessToken)
             {
@@ -91,8 +91,8 @@ namespace ConsoleClient
             Console.WriteLine($"Generated PoP Token: {testPop}");
 
             //--Test validation...
-            var testValidate = await client.ValidatePopToken(testPop, "read", "secret");
-            Console.WriteLine($"PoP Token Valid: {testValidate}");
+            var testValidate = await client.ValidatePopToken(testPop, false, "read", "secret");
+            Console.WriteLine($"PoP Token Valid: {!testValidate.IsError}");
 
             //--Test refresh
             var refreshResult = await client.RefreshTokenAsync(result.RefreshToken);
@@ -101,7 +101,7 @@ namespace ConsoleClient
                 Method = "GET"
             }, refreshResult.PopTokenKey).ToSignedB64String();
             Console.WriteLine($"Generated PoP Token after refresh: {testPop}");
-            Console.WriteLine($"PoP Token (using refreshed access token) Valid: {testValidate}");
+            Console.WriteLine($"PoP Token (using refreshed access token) Valid: {!testValidate.IsError}");
 
             ShowResult(result);
         }

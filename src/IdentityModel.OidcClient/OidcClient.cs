@@ -163,7 +163,7 @@ namespace IdentityModel.OidcClient
                 AccessTokenExpiration = DateTime.Now.AddSeconds(result.TokenResponse.ExpiresIn),
                 IdentityToken = result.TokenResponse.IdentityToken,
                 AuthenticationTime = DateTime.Now,
-                PopTokenKey = result.JwkProvider
+                PopTokenKey = new SigningCredentials(result.JwkProvider, "RS256")
             };
 
             if (!string.IsNullOrWhiteSpace(loginResult.RefreshToken))
@@ -221,6 +221,7 @@ namespace IdentityModel.OidcClient
             var client = TokenClientFactory.Create(_options);
 
             //-- PoP Key Creation
+            _logger.LogTrace("CreateProviderForPopToken");
             var popKey = PopTokenExtensions.CreateProviderForPopToken();
             
             var response = await client.RequestRefreshTokenPopAsync(refreshToken,popKey.Item1.Alg, popKey.Item1.ToJwkString());
@@ -243,7 +244,7 @@ namespace IdentityModel.OidcClient
                 AccessToken = response.AccessToken,
                 RefreshToken = response.RefreshToken,
                 ExpiresIn = (int)response.ExpiresIn,
-                PopTokenKey = popKey.Item2
+                PopTokenKey = new SigningCredentials(popKey.Item2, "RS256")
             };
         }
 
@@ -373,16 +374,16 @@ namespace IdentityModel.OidcClient
         /// <param name="parameters"></param>
         /// <param name="key"></param>
         /// <returns></returns>
-        public JwtSecurityToken CreatePopToken(EncodingParameters parameters, RsaSecurityKey key)
+        public JwtSecurityToken CreatePopToken(EncodingParameters parameters, SigningCredentials signer)
         {
             if (parameters == null) throw new ArgumentNullException("parameters");
-            if (key == null) throw new ArgumentNullException("key");
+            if (signer == null) throw new ArgumentNullException("signer");
             var payload = parameters.Encode();
             var encoded = payload.Encode();
             var jPayload = new JwtPayload();
             foreach (var values in encoded)
                 jPayload.Add(values.Key, values.Value);
-            var jHeader = new JwtHeader(new SigningCredentials(key, "RS256"));
+            var jHeader = new JwtHeader(signer);
             jHeader.Remove("kid"); //Other implementations seem to omit this - and it maybe best since either introspection or the access token will have the key used to validate.
             var jwt = new JwtSecurityToken(jHeader, jPayload);
             return jwt;
@@ -396,13 +397,13 @@ namespace IdentityModel.OidcClient
         /// <param name="scope"></param>
         /// <param name="scopeSecret"></param>
         /// <returns></returns>
-        public  async Task<AccessTokenValidationResult> ValidatePopToken(string token, string scope, string scopeSecret)
+        public  async Task<AccessTokenValidationResult> ValidatePopToken(string token, bool forceIntrospection = false, string scope = null, string scopeSecret = null)
         {
             if (string.IsNullOrEmpty(token)) throw new ArgumentNullException("popToken");
             if (string.IsNullOrEmpty(scope)) throw new ArgumentNullException("scope");
             if (string.IsNullOrEmpty(scopeSecret)) throw new ArgumentNullException("scopeSecret");
             var processor = new PopAccessTokenValidator(_options, EnsureProviderInformationAsync);
-            return await processor.ValidateAsync(token, scope, scopeSecret);
+            return await processor.ValidateAsync(token, forceIntrospection, scope, scopeSecret);
 
         }
 
@@ -413,13 +414,13 @@ namespace IdentityModel.OidcClient
         /// <param name="scope"></param>
         /// <param name="scopeSecret"></param>
         /// <returns></returns>
-        public async Task<Results.AccessTokenValidationResult> ValidateToken(string token, string scope, string scopeSecret)
+        public async Task<Results.AccessTokenValidationResult> ValidateToken(string token, bool forceIntrospection = false, string scope = null, string scopeSecret = null)
         {
             if (string.IsNullOrEmpty(token)) throw new ArgumentNullException("popToken");
             if (string.IsNullOrEmpty(scope)) throw new ArgumentNullException("scope");
             if (string.IsNullOrEmpty(scopeSecret)) throw new ArgumentNullException("scopeSecret");
             var processor = new AccessTokenValidator(_options, EnsureProviderInformationAsync);
-            return await processor.ValidateAsync(token, scope, scopeSecret);
+            return await processor.ValidateAsync(token, forceIntrospection, scope, scopeSecret);
 
         }
     }

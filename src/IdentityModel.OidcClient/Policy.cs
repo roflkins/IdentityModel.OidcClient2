@@ -61,12 +61,12 @@ namespace IdentityModel.OidcClient
         public bool RequireAccessTokenSignature { get; set; } = true;
 
         /// <summary>
-        /// Gets or sets whether an access token is validated using introspection, ir-respective of whether it is a jwt or refrence token.
+        /// Gets or sets whether an access token is awlays validated using introspection, ir-respective of whether it is a jwt or refrence token.
         /// <value>
         /// <c>true</c> If the token must be validated online; otherwise, <c>false</c>
         /// </value>
         /// </summary>
-        public bool ForceOnlyAccessTokenVerification { get; set; } = false;
+        public bool ForceIntrospectionForAccessToken { get; set; } = false;
 
         /// <summary>
         /// Gets or sets the supported identity token signing algorithms.

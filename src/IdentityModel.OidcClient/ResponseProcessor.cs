@@ -257,9 +257,11 @@ namespace IdentityModel.OidcClient
             var client = GetTokenClient();
 
             //-- PoP Key Creation
+            _logger.LogTrace("CreateProviderForPopToken");
             var popKey = PopTokenExtensions.CreateProviderForPopToken();
 
             //-- Code request.
+            _logger.LogTrace("Sending request");
             var tokenResult = await client.RequestAuthorizationCodePopAsync(
                 code,
                 state.RedirectUri,

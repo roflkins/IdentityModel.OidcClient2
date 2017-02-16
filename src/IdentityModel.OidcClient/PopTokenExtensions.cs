@@ -24,11 +24,27 @@ namespace IdentityModel.OidcClient
         internal static Tuple<Jwk.JsonWebKey, RsaSecurityKey> CreateProviderForPopToken()
         {
             var rsa = RSA.Create();
-            rsa.KeySize = 2048; //Set explicitly - on iOS initalizes to 1024.
-            var key = new RsaSecurityKey(rsa);
-            key.KeyId = CryptoRandom.CreateUniqueId();
+            RSAParameters parameters;
+            if (rsa.KeySize < 2048)
+            {
+                rsa.Dispose();
+                rsa = new RSACryptoServiceProvider(2048);
+            }
+            RsaSecurityKey key = null;
+            if (rsa is RSACryptoServiceProvider)
+            {
+                parameters = rsa.ExportParameters(includePrivateParameters: true);
+                key = new RsaSecurityKey(parameters);
 
-            var parameters = key.Rsa?.ExportParameters(false) ?? key.Parameters;
+                rsa.Dispose();
+            }
+            else
+            {
+                key = new RsaSecurityKey(rsa);
+                parameters = key.Rsa?.ExportParameters(true) ?? key.Parameters;
+            }
+            key.KeyId = CryptoRandom.CreateUniqueId();
+            
             var exponent = Base64Url.Encode(parameters.Exponent);
             var modulus = Base64Url.Encode(parameters.Modulus);
 

@@ -31,6 +31,6 @@ namespace IdentityModel.OidcClient
         public HttpMessageHandler RefreshTokenHandler { get; set; }
 
 
-        public RsaSecurityKey PopTokenKey { get; set; }
+        public SigningCredentials PopTokenKey { get; set; }
     }
 }
