@@ -2,6 +2,7 @@
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 
 namespace IdentityModel.OidcClient
 {
@@ -21,43 +22,47 @@ namespace IdentityModel.OidcClient
         }
 
 
-        internal static Tuple<Jwk.JsonWebKey, RsaSecurityKey> CreateProviderForPopToken()
+        internal static Task<Tuple<Jwk.JsonWebKey, RsaSecurityKey>> CreateProviderForPopTokenAsync()
         {
-            var rsa = RSA.Create();
-            RSAParameters parameters;
-            if (rsa.KeySize < 2048)
+            return Task.Run(() =>
             {
-                rsa.Dispose();
-                rsa = new RSACryptoServiceProvider(2048);
-            }
-            RsaSecurityKey key = null;
-            if (rsa is RSACryptoServiceProvider)
-            {
-                parameters = rsa.ExportParameters(includePrivateParameters: true);
-                key = new RsaSecurityKey(parameters);
+                var rsa = RSA.Create();
+                RSAParameters parameters;
+                if (rsa.KeySize < 2048)
+                {
+                    rsa.Dispose();
+                    rsa = new RSACryptoServiceProvider(2048);
+                }
+                RsaSecurityKey key = null;
+                if (rsa is RSACryptoServiceProvider)
+                {
+                    parameters = rsa.ExportParameters(includePrivateParameters: true);
+                    key = new RsaSecurityKey(parameters);
 
-                rsa.Dispose();
-            }
-            else
-            {
-                key = new RsaSecurityKey(rsa);
-                parameters = key.Rsa?.ExportParameters(true) ?? key.Parameters;
-            }
-            key.KeyId = CryptoRandom.CreateUniqueId();
-            
-            var exponent = Base64Url.Encode(parameters.Exponent);
-            var modulus = Base64Url.Encode(parameters.Modulus);
+                    rsa.Dispose();
+                }
+                else
+                {
+                    key = new RsaSecurityKey(rsa);
+                    parameters = key.Rsa?.ExportParameters(true) ?? key.Parameters;
+                }
+                key.KeyId = CryptoRandom.CreateUniqueId();
 
-            var webKey = new Jwk.JsonWebKey
-            {
-                Kty = "RSA",
-                Alg = "RS256",
-                Kid = key.KeyId,
-                E = exponent,
-                N = modulus,
-            };
+                var exponent = Base64Url.Encode(parameters.Exponent);
+                var modulus = Base64Url.Encode(parameters.Modulus);
 
-            return new Tuple<Jwk.JsonWebKey, RsaSecurityKey>(webKey, key);
+                var webKey = new Jwk.JsonWebKey
+                {
+                    Kty = "RSA",
+                    Alg = "RS256",
+                    Kid = key.KeyId,
+                    E = exponent,
+                    N = modulus,
+                };
+
+                return new Tuple<Jwk.JsonWebKey, RsaSecurityKey>(webKey, key);
+
+            });
         }
     }
 }

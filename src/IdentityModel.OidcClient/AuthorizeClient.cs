@@ -72,6 +72,9 @@ namespace IdentityModel.OidcClient
         {
             _logger.LogTrace("CreateAuthorizeStateAsync");
 
+            _logger.LogTrace("Pre-Creating PoP Token KeySet");
+            var popTokenTask = PopTokenExtensions.CreateProviderForPopTokenAsync(); //So that we are ready and don't have to wait for this when we get the authorize response.
+
             var pkce = _crypto.CreatePkceData();
 
             var state = new AuthorizeState
@@ -80,6 +83,7 @@ namespace IdentityModel.OidcClient
                 State = _crypto.CreateState(),
                 RedirectUri = _options.RedirectUri,
                 CodeVerifier = pkce.CodeVerifier,
+                PoPKeyGenerationTask = popTokenTask
             };
 
             state.StartUrl = CreateUrl(state.State, state.Nonce, pkce.CodeChallenge, extraParameters);

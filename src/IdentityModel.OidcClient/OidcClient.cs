@@ -222,7 +222,7 @@ namespace IdentityModel.OidcClient
 
             //-- PoP Key Creation
             _logger.LogTrace("CreateProviderForPopToken");
-            var popKey = PopTokenExtensions.CreateProviderForPopToken();
+            var popKey = await PopTokenExtensions.CreateProviderForPopTokenAsync();
             
             var response = await client.RequestRefreshTokenPopAsync(refreshToken,popKey.Item1.Alg, popKey.Item1.ToJwkString());
 

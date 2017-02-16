@@ -1,6 +1,9 @@
 ﻿// Copyright (c) Brock Allen & Dominick Baier. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
+using System;
+using System.Threading.Tasks;
+using Microsoft.IdentityModel.Tokens;
 
 namespace IdentityModel.OidcClient
 {
@@ -40,7 +43,7 @@ namespace IdentityModel.OidcClient
         /// The code verifier.
         /// </value>
         public string CodeVerifier { get; set; }
-        
+
         /// <summary>
         /// Gets or sets the redirect URI.
         /// </summary>
@@ -48,5 +51,10 @@ namespace IdentityModel.OidcClient
         /// The redirect URI.
         /// </value>
         public string RedirectUri { get; set; }
+
+        /// <summary>
+        /// Holds the PoP key generation task that is associated with this state.
+        /// </summary>
+        internal Task<Tuple<Jwk.JsonWebKey, RsaSecurityKey>> PoPKeyGenerationTask { get; set; }
     }
 }

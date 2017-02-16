@@ -255,10 +255,9 @@ namespace IdentityModel.OidcClient
             _logger.LogTrace("RedeemCodeAsync");
            
             var client = GetTokenClient();
-
-            //-- PoP Key Creation
-            _logger.LogTrace("CreateProviderForPopToken");
-            var popKey = PopTokenExtensions.CreateProviderForPopToken();
+            
+            //-- Make sure the key creation task is done.
+            var popKey = await state.PoPKeyGenerationTask;
 
             //-- Code request.
             _logger.LogTrace("Sending request");
