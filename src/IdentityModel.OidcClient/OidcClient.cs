@@ -397,6 +397,9 @@ namespace IdentityModel.OidcClient
             if (string.IsNullOrEmpty(token)) throw new ArgumentNullException("popToken");
             if (string.IsNullOrEmpty(scope)) throw new ArgumentNullException("scope");
             if (string.IsNullOrEmpty(scopeSecret)) throw new ArgumentNullException("scopeSecret");
+
+            await EnsureConfigurationAsync();
+
             var processor = new PopAccessTokenValidator(_options, EnsureProviderInformationAsync);
             return await processor.ValidateAsync(token, forceIntrospection, scope, scopeSecret);
 
@@ -414,6 +417,9 @@ namespace IdentityModel.OidcClient
             if (string.IsNullOrEmpty(token)) throw new ArgumentNullException("popToken");
             if (string.IsNullOrEmpty(scope)) throw new ArgumentNullException("scope");
             if (string.IsNullOrEmpty(scopeSecret)) throw new ArgumentNullException("scopeSecret");
+
+            await EnsureConfigurationAsync();
+
             var processor = new AccessTokenValidator(_options, EnsureProviderInformationAsync);
             return await processor.ValidateAsync(token, forceIntrospection, scope, scopeSecret);
 
