@@ -86,7 +86,7 @@ namespace ConsoleClient
             var testPop = client.CreatePopToken(new IdentityModel.OidcClient.Pop.EncodingParameters(options, result.AccessToken)
             {
                 Method = "GET" 
-            }, result.PopTokenKey).ToSignedB64String();
+            }.ToJwtPayload(), result.PopTokenKey).ToSignedB64String();
 
             Console.WriteLine($"Generated PoP Token: {testPop}");
 
@@ -99,7 +99,7 @@ namespace ConsoleClient
              testPop = client.CreatePopToken(new IdentityModel.OidcClient.Pop.EncodingParameters(options, refreshResult.AccessToken)
             {
                 Method = "GET"
-            }, refreshResult.PopTokenKey).ToSignedB64String();
+            }.ToJwtPayload(), refreshResult.PopTokenKey).ToSignedB64String();
             Console.WriteLine($"Generated PoP Token after refresh: {testPop}");
             Console.WriteLine($"PoP Token (using refreshed access token) Valid: {!testValidate.IsError}");
 

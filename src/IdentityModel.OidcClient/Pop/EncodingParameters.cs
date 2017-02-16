@@ -5,6 +5,7 @@ using System.Net.Http;
 using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Linq;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace IdentityModel.OidcClient.Pop
 {
@@ -84,6 +85,22 @@ namespace IdentityModel.OidcClient.Pop
 
             return result;
         }
+
+        /// <summary>
+        /// Returns the encoded parameters as a JwtPayload
+        /// </summary>
+        /// <returns></returns>
+        public JwtPayload ToJwtPayload()
+        {
+            var payload = this.Encode();
+            var encoded = payload.Encode();
+            var jPayload = new JwtPayload();
+            foreach (var values in encoded)
+                jPayload.Add(values.Key, values.Value);
+
+            return jPayload;
+        }
+
 
         string CalculateBodyHash()
         {

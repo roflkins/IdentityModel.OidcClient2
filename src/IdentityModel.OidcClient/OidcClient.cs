@@ -369,23 +369,18 @@ namespace IdentityModel.OidcClient
         }
 
         /// <summary>
-        /// Creates a pop/HMAC token using the parameters and signature key specified.
+        /// Creates a pop/HMAC token using the payload and signature key specified.
         /// </summary>
         /// <param name="parameters"></param>
         /// <param name="key"></param>
         /// <returns></returns>
-        public JwtSecurityToken CreatePopToken(EncodingParameters parameters, SigningCredentials signer)
+        public JwtSecurityToken CreatePopToken(JwtPayload payload, SigningCredentials signer)
         {
-            if (parameters == null) throw new ArgumentNullException("parameters");
+            if (payload == null) throw new ArgumentNullException("payload");
             if (signer == null) throw new ArgumentNullException("signer");
-            var payload = parameters.Encode();
-            var encoded = payload.Encode();
-            var jPayload = new JwtPayload();
-            foreach (var values in encoded)
-                jPayload.Add(values.Key, values.Value);
             var jHeader = new JwtHeader(signer);
             jHeader.Remove("kid"); //Other implementations seem to omit this - and it maybe best since either introspection or the access token will have the key used to validate.
-            var jwt = new JwtSecurityToken(jHeader, jPayload);
+            var jwt = new JwtSecurityToken(jHeader, payload);
             return jwt;
         }
         
