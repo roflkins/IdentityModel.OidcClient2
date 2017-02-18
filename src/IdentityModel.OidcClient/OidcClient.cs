@@ -58,13 +58,13 @@ namespace IdentityModel.OidcClient
             _processor = new ResponseProcessor(options, EnsureProviderInformationAsync);
         }
 
-        public async Task<LoginResult> LoginAsync(DisplayMode displayMode = DisplayMode.Visible, int timeout = 300, object extraParameters = null)
+        public async Task<LoginResult> LoginAsync(DisplayMode displayMode = DisplayMode.Visible, int timeout = 300, Task<Microsoft.IdentityModel.Tokens.RsaSecurityKey> pregeneratedPoPKeyTask = null, object extraParameters = null)
         {
             _logger.LogTrace("LoginAsync");
             _logger.LogInformation("Starting authentication request.");
 
             await EnsureConfigurationAsync();
-            var authorizeResult = await _authorizeClient.AuthorizeAsync(displayMode, timeout, extraParameters);
+            var authorizeResult = await _authorizeClient.AuthorizeAsync(displayMode, timeout, pregeneratedPoPKeyTask, extraParameters);
 
             if (authorizeResult.IsError)
             {
@@ -86,12 +86,12 @@ namespace IdentityModel.OidcClient
         /// </summary>
         /// <param name="extraParameters">extra parameters to send to the authorize endpoint.</param>
         /// <returns>State for initiating the authorize request and processing the response</returns>
-        public async Task<AuthorizeState> PrepareLoginAsync(object extraParameters = null)
+        public async Task<AuthorizeState> PrepareLoginAsync(Task<RsaSecurityKey> pregeneratedKeyTask = null, object extraParameters = null)
         {
             _logger.LogTrace("PrepareLoginAsync");
 
             await EnsureConfigurationAsync();
-            return _authorizeClient.CreateAuthorizeState(extraParameters);
+            return _authorizeClient.CreateAuthorizeState(pregeneratedKeyTask, extraParameters);
         }
 
         /// <summary>
@@ -155,16 +155,16 @@ namespace IdentityModel.OidcClient
 
             var user = ProcessClaims(result.User, userInfoClaims);
 
-            var loginResult = new LoginResult
-            {
-                User = user,
-                AccessToken = result.TokenResponse.AccessToken,
-                RefreshToken = result.TokenResponse.RefreshToken,
-                AccessTokenExpiration = DateTime.Now.AddSeconds(result.TokenResponse.ExpiresIn),
-                IdentityToken = result.TokenResponse.IdentityToken,
-                AuthenticationTime = DateTime.Now,
-                PopTokenKey = new SigningCredentials(result.JwkProvider, "RS256")
-            };
+			var loginResult = new LoginResult
+			{
+				User = user,
+				AccessToken = result.TokenResponse.AccessToken,
+				RefreshToken = result.TokenResponse.RefreshToken,
+				AccessTokenExpiration = DateTime.Now.AddSeconds(result.TokenResponse.ExpiresIn),
+				IdentityToken = result.TokenResponse.IdentityToken,
+				AuthenticationTime = DateTime.Now,
+				PopTokenKey = result.JwkProvider != null ? new SigningCredentials(result.JwkProvider, "RS256") : null
+			};
 
             if (!string.IsNullOrWhiteSpace(loginResult.RefreshToken))
             {
@@ -214,17 +214,30 @@ namespace IdentityModel.OidcClient
         /// </summary>
         /// <param name="refreshToken">The refresh token.</param>
         /// <returns>A token response.</returns>
-        public async Task<RefreshTokenResult> RefreshTokenAsync(string refreshToken)
+        public async Task<RefreshTokenResult> RefreshTokenAsync(string refreshToken, Task<RsaSecurityKey> pregeneratedPopKeyTask = null)
         {
+			if (string.IsNullOrEmpty(refreshToken)) throw new ArgumentException("refreshToken");
             _logger.LogTrace("RefreshTokenAsync");
+
+			await EnsureConfigurationAsync();
 
             var client = TokenClientFactory.Create(_options);
 
-            //-- PoP Key Creation
-            _logger.LogTrace("CreateProviderForPopToken");
-            var popKey = PopTokenExtensions.CreateProviderForPopToken();
-            
-            var response = await client.RequestRefreshTokenPopAsync(refreshToken,popKey.Item1.Alg, popKey.Item1.ToJwkString());
+
+			TokenResponse response;
+			SigningCredentials popSigner = null;
+
+			if (_options.RequestPopTokens)
+			{
+				//-- PoP Key Creation
+				_logger.LogTrace("CreateProviderForPopToken");
+				var popKey = await (pregeneratedPopKeyTask ?? PopTokenExtensions.CreateProviderForPopTokenAsync());
+				var jwk = popKey.ToJwk();
+				response = await client.RequestRefreshTokenPopAsync(refreshToken, jwk.Alg, jwk.ToJwkString());
+				popSigner = new SigningCredentials(popKey, "RS256");
+			}
+			else
+				response = await client.RequestRefreshTokenAsync(refreshToken);
 
             if (response.IsError)
             {
@@ -244,9 +257,18 @@ namespace IdentityModel.OidcClient
                 AccessToken = response.AccessToken,
                 RefreshToken = response.RefreshToken,
                 ExpiresIn = (int)response.ExpiresIn,
-                PopTokenKey = new SigningCredentials(popKey.Item2, "RS256")
+                PopTokenKey = popSigner
             };
         }
+
+		/// <summary>
+		/// Pre preforms the discovery mechanism.
+		/// </summary>
+		/// <returns>The discovery async.</returns>
+		public async Task PreformDiscoveryAsync()
+		{
+			await EnsureConfigurationAsync();
+		}
 
         internal async Task EnsureConfigurationAsync()
         {

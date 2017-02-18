@@ -21,33 +21,41 @@ namespace IdentityModel.OidcClient
             return handler.WriteToken(token);
         }
 
-
-		internal static Tuple<Jwk.JsonWebKey, RsaSecurityKey> CreateProviderForPopToken()
+		/// <summary>
+		/// Returns a new provider and JWK for signing pop tokens. Can be pre-called and passed to the login flow to diminish the visible time this is generating a key to users.
+		/// </summary>
+		/// <returns>The provider for pop token async.</returns>
+		public static Task<RsaSecurityKey> CreateProviderForPopTokenAsync()
 		{
-			var rsa = RSA.Create();
-			RSAParameters parameters;
-			if (rsa.KeySize < 2048)
+			return Task.Run(() =>
 			{
-				rsa.Dispose();
-				rsa = new RSACryptoServiceProvider(2048);
-			}
-			RsaSecurityKey key = null;
-			if (rsa is RSACryptoServiceProvider)
-			{
-				parameters = rsa.ExportParameters(includePrivateParameters: true);
-				key = new RsaSecurityKey(parameters);
+				System.Console.WriteLine("START");
+				var rsa = RSA.Create();
+				if (rsa.KeySize < 2048)
+				{
+					rsa.Dispose();
+					rsa = new RSACryptoServiceProvider(2048);
+				}
+				RsaSecurityKey key = null;
+				if (rsa is RSACryptoServiceProvider)
+				{
+					key = new RsaSecurityKey(rsa);
+				}
+				else
+				{
+					key = new RsaSecurityKey(rsa);
+				}
+				key.KeyId = CryptoRandom.CreateUniqueId();
+				System.Console.WriteLine("FINISH");
+				return key;
+			});
+		}
 
-				rsa.Dispose();
-			}
-			else
-			{
-				key = new RsaSecurityKey(rsa);
-				parameters = key.Rsa?.ExportParameters(true) ?? key.Parameters;
-			}
-			key.KeyId = CryptoRandom.CreateUniqueId();
-
-			var exponent = Base64Url.Encode(parameters.Exponent);
-			var modulus = Base64Url.Encode(parameters.Modulus);
+		public static Jwk.JsonWebKey ToJwk(this RsaSecurityKey key)
+		{
+			var param = key.Rsa.ExportParameters(false);
+			var exponent = Base64Url.Encode(param.Exponent);
+			var modulus = Base64Url.Encode(param.Modulus);
 
 			var webKey = new Jwk.JsonWebKey
 			{
@@ -58,7 +66,7 @@ namespace IdentityModel.OidcClient
 				N = modulus,
 			};
 
-			return new Tuple<Jwk.JsonWebKey, RsaSecurityKey>(webKey, key);
+			return webKey;
 		}
     }
 }

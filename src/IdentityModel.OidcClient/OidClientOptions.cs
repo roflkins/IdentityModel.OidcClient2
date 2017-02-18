@@ -135,6 +135,12 @@ namespace IdentityModel.OidcClient
         /// </value>
         public AuthenticationFlow Flow { get; set; } = AuthenticationFlow.Hybrid;
 
+		/// <summary>
+		/// Whether the client should generate a request for a PoP <c>true</c> or bearer <c>false</c> based tokens.
+		/// </summary>
+		/// <value><c>true</c> to request pop tokens; otherwise, <c>false</c>.</value>
+		public bool RequestPopTokens { get; set; } = false;
+
         /// <summary>
         /// Gets or sets the HTTP handler used for back-channel communication (token and userinfo endpoint).
         /// </summary>

@@ -27,7 +27,7 @@ namespace IdentityModel.OidcClient
             _crypto = new CryptoHelper(options);
         }
 
-        public async Task<AuthorizeResult> AuthorizeAsync(DisplayMode displayMode = DisplayMode.Visible, int timeout = 300, object extraParameters = null)
+        public async Task<AuthorizeResult> AuthorizeAsync(DisplayMode displayMode = DisplayMode.Visible, int timeout = 300, Task<Microsoft.IdentityModel.Tokens.RsaSecurityKey> pregeneratedPoPKeyTask = null, object extraParameters = null)
         {
             _logger.LogTrace("AuthorizeAsync");
 
@@ -38,7 +38,7 @@ namespace IdentityModel.OidcClient
 
             AuthorizeResult result = new AuthorizeResult
             {
-                State = CreateAuthorizeState(extraParameters)
+                State = CreateAuthorizeState(pregeneratedPoPKeyTask, extraParameters)
             };
 
             var browserOptions = new BrowserOptions(result.State.StartUrl, _options.RedirectUri)
@@ -68,19 +68,20 @@ namespace IdentityModel.OidcClient
             return result;
         }
 
-        public AuthorizeState CreateAuthorizeState(object extraParameters = null)
+        public AuthorizeState CreateAuthorizeState(Task<Microsoft.IdentityModel.Tokens.RsaSecurityKey> pregeneratedPoPKeyTask = null, object extraParameters = null)
         {
             _logger.LogTrace("CreateAuthorizeStateAsync");
 
             var pkce = _crypto.CreatePkceData();
 
-            var state = new AuthorizeState
-            {
-                Nonce = _crypto.CreateNonce(),
-                State = _crypto.CreateState(),
-                RedirectUri = _options.RedirectUri,
-                CodeVerifier = pkce.CodeVerifier
-            };
+			var state = new AuthorizeState
+			{
+				Nonce = _crypto.CreateNonce(),
+				State = _crypto.CreateState(),
+				RedirectUri = _options.RedirectUri,
+				CodeVerifier = pkce.CodeVerifier,
+				PopTokenGenerationTask = _options.RequestPopTokens ? pregeneratedPoPKeyTask ?? PopTokenExtensions.CreateProviderForPopTokenAsync() : null
+			};
 
             state.StartUrl = CreateUrl(state.State, state.Nonce, pkce.CodeChallenge, extraParameters);
 

@@ -256,21 +256,37 @@ namespace IdentityModel.OidcClient
            
             var client = GetTokenClient();
 
-			//-- Make sure the key is created
-			_logger.LogTrace("CreateProviderForPopToken");
-			var popKey = PopTokenExtensions.CreateProviderForPopToken();
+			if (_options.RequestPopTokens)
+			{
+				//-- Make sure the key is created
+				_logger.LogTrace("CreateProviderForPopToken");
+				var popKey = await (state.PopTokenGenerationTask ?? PopTokenExtensions.CreateProviderForPopTokenAsync());
+				var jwk = popKey.ToJwk();
 
-            //-- Code request.
-            _logger.LogTrace("Sending request");
-            var tokenResult = await client.RequestAuthorizationCodePopAsync(
-                code,
-                state.RedirectUri,
-                state.CodeVerifier,
-                popKey.Item1.Alg,
-                popKey.Item1.ToJwkString()
-                );
+				//-- Code request.
+				_logger.LogTrace("Sending request");
+				var tokenResult = await client.RequestAuthorizationCodePopAsync(
+					code,
+					state.RedirectUri,
+					state.CodeVerifier,
+					jwk.Alg,
+					jwk.ToJwkString()
+					);
 
-            return new Tuple<TokenResponse, RsaSecurityKey>(tokenResult, popKey.Item2);
+				return new Tuple<TokenResponse, RsaSecurityKey>(tokenResult, popKey);
+			}
+			else
+			{
+				//-- Code request.
+				_logger.LogTrace("Sending request");
+				var tokenResult = await client.RequestAuthorizationCodeAsync(
+					code,
+					state.RedirectUri,
+					state.CodeVerifier
+				);
+
+				return new Tuple<TokenResponse, RsaSecurityKey>(tokenResult, null);
+			}
         }
 
         private TokenClient GetTokenClient()
