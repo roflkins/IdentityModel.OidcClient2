@@ -7,6 +7,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using IdentityModel.Client;
 
 namespace ConsoleClient
 {
@@ -49,7 +50,7 @@ namespace ConsoleClient
                 Authority = _authority,
                 ClientId = "native.hybrid",
                 RedirectUri = redirectUri,
-                Scope = "openid profile api read offline_access",
+                Scope = "openid profile offline_access read api",
                 ClientSecret = "secret",
                 FilterClaims = true,
                 LoadProfile = true,
@@ -96,12 +97,24 @@ namespace ConsoleClient
 
             //--Test refresh
             var refreshResult = await client.RefreshTokenAsync(result.RefreshToken);
-             testPop = client.CreatePopToken(new IdentityModel.OidcClient.Pop.EncodingParameters(options, refreshResult.AccessToken)
+            var refreshValidate = client.CreatePopToken(new IdentityModel.OidcClient.Pop.EncodingParameters(options, refreshResult.AccessToken)
             {
                 Method = "GET"
             }.ToJwtPayload(), refreshResult.PopTokenKey).ToSignedB64String();
+            var refreshValid = await client.ValidatePopToken(refreshValidate, false, "read", "secret");
+            var oldValidate = client.CreatePopToken(new IdentityModel.OidcClient.Pop.EncodingParameters(options, result.AccessToken)
+            {
+                Method = "GET"
+            }.ToJwtPayload(), result.PopTokenKey).ToSignedB64String();
+            var oldValid = await client.ValidatePopToken(oldValidate, false, "read", "secret");
             Console.WriteLine($"Generated PoP Token after refresh: {testPop}");
-            Console.WriteLine($"PoP Token (using refreshed access token) Valid: {!testValidate.IsError}");
+            Console.WriteLine($"PoP Token (using refreshed access token) Valid: {!refreshValid.IsError}");
+            Console.WriteLine($"PoP Token (using old access token) Valid: {!oldValid.IsError}"); //Depending on how implemented - this should not work for an old token after the refresh token has been used.
+
+            //--Revoke the tokens.
+            var revokeClient = new TokenRevocationClient($"{options.Authority}/connect/revocation", options.ClientId, options.ClientSecret);
+            var revokeResult = await revokeClient.RevokeRefreshTokenAsync(refreshResult.RefreshToken);
+            Console.WriteLine($"Token revocation succeeded: {!revokeResult.IsError}");
 
             ShowResult(result);
         }
@@ -125,7 +138,7 @@ namespace ConsoleClient
             Console.WriteLine($"refresh token:  {result?.RefreshToken ?? "none"}");
         }
 
-        private static async Task SendResponseAsync(Response response)
+        private static async Task SendResponseAsync(Microsoft.Net.Http.Server.Response response)
         {
             string responseString = $"<html><head></head><body>Please return to the app.</body></html>";
             var buffer = Encoding.UTF8.GetBytes(responseString);
