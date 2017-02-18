@@ -51,10 +51,5 @@ namespace IdentityModel.OidcClient
         /// The redirect URI.
         /// </value>
         public string RedirectUri { get; set; }
-
-        /// <summary>
-        /// Holds the PoP key generation task that is associated with this state.
-        /// </summary>
-        internal Task<Tuple<Jwk.JsonWebKey, RsaSecurityKey>> PoPKeyGenerationTask { get; set; }
     }
 }
