@@ -45,6 +45,7 @@ namespace IdentityModel.OidcClient
 				{
 					key = new RsaSecurityKey(rsa);
 				}
+				key.Rsa.ExportParameters(false);
 				key.KeyId = CryptoRandom.CreateUniqueId();
 				System.Console.WriteLine("FINISH");
 				return key;
