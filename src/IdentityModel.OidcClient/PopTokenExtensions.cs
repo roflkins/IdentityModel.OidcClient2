@@ -29,7 +29,6 @@ namespace IdentityModel.OidcClient
 		{
 			return Task.Run(() =>
 			{
-				System.Console.WriteLine("START");
 				var rsa = RSA.Create();
 				if (rsa.KeySize < 2048)
 				{
@@ -47,7 +46,6 @@ namespace IdentityModel.OidcClient
 				}
 				key.Rsa.ExportParameters(false);
 				key.KeyId = CryptoRandom.CreateUniqueId();
-				System.Console.WriteLine("FINISH");
 				return key;
 			});
 		}
