@@ -106,7 +106,7 @@ namespace IdentityModel.OidcClient
             AccessTokenValidationResult tokenValidation = null;
             try
             {
-               tokenValidation = await new AccessTokenValidator(_options, _refreshKeysAsync).ValidateAsync(extractedAccessToken, forceIntrospection, introspectionScope, introspectionSecret);
+               tokenValidation = await new AccessTokenValidator(_options, _refreshKeysAsync).ValidateAsync(extractedAccessToken, forceIntrospection, introspectionScope, introspectionSecret).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

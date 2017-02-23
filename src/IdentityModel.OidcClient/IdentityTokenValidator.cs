@@ -104,7 +104,7 @@ namespace IdentityModel.OidcClient
                     _logger.LogWarning("Key for validating token signature cannot be found. Refreshing keyset.");
 
                     // try to refresh the key set and try again
-                    await _refreshKeysAsync();
+                    await _refreshKeysAsync().ConfigureAwait(false);
 
                     try
                     {

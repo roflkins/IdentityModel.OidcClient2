@@ -56,9 +56,9 @@ namespace IdentityModel.OidcClient
             switch (_options.Flow)
             {
                 case OidcClientOptions.AuthenticationFlow.AuthorizationCode:
-                    return await ProcessCodeFlowResponseAsync(authorizeResponse, state);
+                    return await ProcessCodeFlowResponseAsync(authorizeResponse, state).ConfigureAwait(false);
                 case OidcClientOptions.AuthenticationFlow.Hybrid:
-                    return await ProcessHybridFlowResponseAsync(authorizeResponse, state);
+                    return await ProcessHybridFlowResponseAsync(authorizeResponse, state).ConfigureAwait(false);
                 default:
                     throw new ArgumentOutOfRangeException(nameof(_options.Flow), "Invalid authentication style.");
             }
@@ -79,7 +79,7 @@ namespace IdentityModel.OidcClient
             }
 
             // id_token must be valid
-            var frontChannelValidationResult = await _tokenValidator.ValidateAsync(authorizeResponse.IdentityToken);
+            var frontChannelValidationResult = await _tokenValidator.ValidateAsync(authorizeResponse.IdentityToken).ConfigureAwait(false);
             if (frontChannelValidationResult.IsError)
             {
                 return new ResponseValidationResult(frontChannelValidationResult.Error ?? "Identity token validation error.");
@@ -113,14 +113,14 @@ namespace IdentityModel.OidcClient
             //////////////////////////////////////////////////////
 
             // redeem code for tokens
-            var tokenResponse = await RedeemCodeAsync(authorizeResponse.Code, state);
+            var tokenResponse = await RedeemCodeAsync(authorizeResponse.Code, state).ConfigureAwait(false);
             if (tokenResponse.Item1.IsError)
             {
                 return new ResponseValidationResult(tokenResponse.Item1.Error);
             }
 
             // validate token response
-            var tokenResponseValidationResult = await ValidateTokenResponseAsync(tokenResponse.Item1, state);
+            var tokenResponseValidationResult = await ValidateTokenResponseAsync(tokenResponse.Item1, state).ConfigureAwait(false);
             if (tokenResponseValidationResult.IsError)
             {
                 return new ResponseValidationResult(tokenResponseValidationResult.Error);
@@ -153,14 +153,14 @@ namespace IdentityModel.OidcClient
             //////////////////////////////////////////////////////
 
             // redeem code for tokens
-            var tokenResponse = await RedeemCodeAsync(authorizeResponse.Code, state);
+            var tokenResponse = await RedeemCodeAsync(authorizeResponse.Code, state).ConfigureAwait(false);
             if (tokenResponse.Item1.IsError)
             {
                 return new ResponseValidationResult($"Error redeeming code: {tokenResponse.Item1.Error ?? "no error code"} / {tokenResponse.Item1.ErrorDescription ?? "no description"}");
             }
 
             // validate token response
-            var tokenResponseValidationResult = await ValidateTokenResponseAsync(tokenResponse.Item1, state);
+            var tokenResponseValidationResult = await ValidateTokenResponseAsync(tokenResponse.Item1, state).ConfigureAwait(false);
             if (tokenResponseValidationResult.IsError)
             {
                 return new ResponseValidationResult($"Error validating token response: {tokenResponseValidationResult.Error}");
@@ -197,7 +197,7 @@ namespace IdentityModel.OidcClient
             if (response.IdentityToken.IsPresent())
             {
                 // if identity token is present, it must be valid
-                var validationResult = await _tokenValidator.ValidateAsync(response.IdentityToken);
+                var validationResult = await _tokenValidator.ValidateAsync(response.IdentityToken).ConfigureAwait(false);
                 if (validationResult.IsError)
                 {
                     return new TokenResponseValidationResult(validationResult.Error ?? "Identity token validation error");
@@ -260,7 +260,7 @@ namespace IdentityModel.OidcClient
 			{
 				//-- Make sure the key is created
 				_logger.LogTrace("CreateProviderForPopToken");
-				var popKey = await (state.PopTokenGenerationTask ?? PopTokenExtensions.CreateProviderForPopTokenAsync());
+				var popKey = await (state.PopTokenGenerationTask ?? PopTokenExtensions.CreateProviderForPopTokenAsync()).ConfigureAwait(false);
 				var jwk = popKey.ToJwk();
 
 				//-- Code request.
@@ -271,7 +271,7 @@ namespace IdentityModel.OidcClient
 					state.CodeVerifier,
 					jwk.Alg,
 					jwk.ToJwkString()
-					);
+					).ConfigureAwait(false);
 
 				return new Tuple<TokenResponse, RsaSecurityKey>(tokenResult, popKey);
 			}
@@ -283,7 +283,7 @@ namespace IdentityModel.OidcClient
 					code,
 					state.RedirectUri,
 					state.CodeVerifier
-				);
+				).ConfigureAwait(false);
 
 				return new Tuple<TokenResponse, RsaSecurityKey>(tokenResult, null);
 			}

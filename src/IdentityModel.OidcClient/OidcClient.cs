@@ -63,15 +63,15 @@ namespace IdentityModel.OidcClient
             _logger.LogTrace("LoginAsync");
             _logger.LogInformation("Starting authentication request.");
 
-            await EnsureConfigurationAsync();
-            var authorizeResult = await _authorizeClient.AuthorizeAsync(displayMode, timeout, pregeneratedPoPKeyTask, extraParameters);
+            await EnsureConfigurationAsync().ConfigureAwait(false);
+            var authorizeResult = await _authorizeClient.AuthorizeAsync(displayMode, timeout, pregeneratedPoPKeyTask, extraParameters).ConfigureAwait(false);
 
             if (authorizeResult.IsError)
             {
                 return new LoginResult(authorizeResult.Error);
             }
 
-            var result = await ProcessResponseAsync(authorizeResult.Data, authorizeResult.State);
+            var result = await ProcessResponseAsync(authorizeResult.Data, authorizeResult.State).ConfigureAwait(false);
 
             if (!result.IsError)
             {
@@ -90,7 +90,7 @@ namespace IdentityModel.OidcClient
         {
             _logger.LogTrace("PrepareLoginAsync");
 
-            await EnsureConfigurationAsync();
+            await EnsureConfigurationAsync().ConfigureAwait(false);
             return _authorizeClient.CreateAuthorizeState(pregeneratedKeyTask, extraParameters);
         }
 
@@ -114,7 +114,7 @@ namespace IdentityModel.OidcClient
                 return new LoginResult(authorizeResponse.Error);
             }
 
-            var result = await _processor.ProcessResponseAsync(authorizeResponse, state);
+            var result = await _processor.ProcessResponseAsync(authorizeResponse, state).ConfigureAwait(false);
             if (result.IsError)
             {
                 _logger.LogError(result.Error);
@@ -124,7 +124,7 @@ namespace IdentityModel.OidcClient
             var userInfoClaims = Enumerable.Empty<Claim>();
             if (_options.LoadProfile)
             {
-                var userInfoResult = await GetUserInfoAsync(result.TokenResponse.AccessToken);
+                var userInfoResult = await GetUserInfoAsync(result.TokenResponse.AccessToken).ConfigureAwait(false);
                 if (userInfoResult.IsError)
                 {
                     var error = $"Error contacting userinfo endpoint: {userInfoResult.Error}";
@@ -192,7 +192,7 @@ namespace IdentityModel.OidcClient
             var userInfoClient = new UserInfoClient(_options.ProviderInformation.UserInfoEndpoint, _options.BackchannelHandler);
             userInfoClient.Timeout = _options.BackchannelTimeout;
 
-            var userInfoResponse = await userInfoClient.GetAsync(accessToken);
+            var userInfoResponse = await userInfoClient.GetAsync(accessToken).ConfigureAwait(false);
             if (userInfoResponse.IsError)
             {
                 return new UserInfoResult
@@ -219,7 +219,7 @@ namespace IdentityModel.OidcClient
 			if (string.IsNullOrEmpty(refreshToken)) throw new ArgumentException("refreshToken");
             _logger.LogTrace("RefreshTokenAsync");
 
-			await EnsureConfigurationAsync();
+			await EnsureConfigurationAsync().ConfigureAwait(false);
 
             var client = TokenClientFactory.Create(_options);
 
@@ -231,13 +231,13 @@ namespace IdentityModel.OidcClient
 			{
 				//-- PoP Key Creation
 				_logger.LogTrace("CreateProviderForPopToken");
-				var popKey = await (pregeneratedPopKeyTask ?? PopTokenExtensions.CreateProviderForPopTokenAsync());
+				var popKey = await (pregeneratedPopKeyTask ?? PopTokenExtensions.CreateProviderForPopTokenAsync()).ConfigureAwait(false);
 				var jwk = popKey.ToJwk();
-				response = await client.RequestRefreshTokenPopAsync(refreshToken, jwk.Alg, jwk.ToJwkString());
+				response = await client.RequestRefreshTokenPopAsync(refreshToken, jwk.Alg, jwk.ToJwkString()).ConfigureAwait(false);
 				popSigner = new SigningCredentials(popKey, "RS256");
 			}
 			else
-				response = await client.RequestRefreshTokenAsync(refreshToken);
+				response = await client.RequestRefreshTokenAsync(refreshToken).ConfigureAwait(false);
 
             if (response.IsError)
             {
@@ -245,7 +245,7 @@ namespace IdentityModel.OidcClient
             }
 
             // validate token response
-            var validationResult = await _processor.ValidateTokenResponseAsync(response, null, requireIdentityToken: _options.Policy.RequireIdentityTokenOnRefreshTokenResponse);
+            var validationResult = await _processor.ValidateTokenResponseAsync(response, null, requireIdentityToken: _options.Policy.RequireIdentityTokenOnRefreshTokenResponse).ConfigureAwait(false);
             if (validationResult.IsError)
             {
                 return new RefreshTokenResult { Error = validationResult.Error };
@@ -267,7 +267,7 @@ namespace IdentityModel.OidcClient
 		/// <returns>The discovery async.</returns>
 		public async Task PreformDiscoveryAsync()
 		{
-			await EnsureConfigurationAsync();
+			await EnsureConfigurationAsync().ConfigureAwait(false);
 		}
 
         internal async Task EnsureConfigurationAsync()
@@ -280,7 +280,7 @@ namespace IdentityModel.OidcClient
                 throw new InvalidOperationException(error);
             }
 
-            await EnsureProviderInformationAsync();
+            await EnsureProviderInformationAsync().ConfigureAwait(false);
 
             _logger.LogDebug("Effective options:");
             _logger.LogDebug(LogSerializer.Serialize(_options));
@@ -420,10 +420,10 @@ namespace IdentityModel.OidcClient
             if (string.IsNullOrEmpty(scope)) throw new ArgumentNullException("scope");
             if (string.IsNullOrEmpty(scopeSecret)) throw new ArgumentNullException("scopeSecret");
 
-            await EnsureConfigurationAsync();
+            await EnsureConfigurationAsync().ConfigureAwait(false);
 
             var processor = new PopAccessTokenValidator(_options, EnsureProviderInformationAsync);
-            return await processor.ValidateAsync(token, forceIntrospection, scope, scopeSecret);
+            return await processor.ValidateAsync(token, forceIntrospection, scope, scopeSecret).ConfigureAwait(false);
 
         }
 
@@ -440,10 +440,10 @@ namespace IdentityModel.OidcClient
             if (string.IsNullOrEmpty(scope)) throw new ArgumentNullException("scope");
             if (string.IsNullOrEmpty(scopeSecret)) throw new ArgumentNullException("scopeSecret");
 
-            await EnsureConfigurationAsync();
+            await EnsureConfigurationAsync().ConfigureAwait(false);
 
             var processor = new AccessTokenValidator(_options, EnsureProviderInformationAsync);
-            return await processor.ValidateAsync(token, forceIntrospection, scope, scopeSecret);
+            return await processor.ValidateAsync(token, forceIntrospection, scope, scopeSecret).ConfigureAwait(false);
 
         }
     }
